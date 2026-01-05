@@ -1,4 +1,4 @@
-# SQLite D1 Go Chat
+# SQLite Go Chat
 
 > **WARNING: This project is currently under active development. APIs and features are subject to change.**
 
