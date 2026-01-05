@@ -32,8 +32,8 @@ func main() {
 	}
 	defer database.Close()
 
-	// Run migrations
-	if err := database.RunMigrations("./migrations"); err != nil {
+	// Run GORM auto-migrations
+	if err := database.AutoMigrate(); err != nil {
 		log.Fatalf("Failed to run migrations: %v", err)
 	}
 
