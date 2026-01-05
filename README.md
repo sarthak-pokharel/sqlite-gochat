@@ -1,5 +1,7 @@
 # SQLite D1 Go Chat
 
+> **WARNING: This project is currently under active development. APIs and features are subject to change.**
+
 Multi-channel chat aggregator service that listens for incoming messages from external platforms (WhatsApp Business, Telegram, Instagram, etc.) and provides a unified API for managing conversations.
 
 ## Architecture
