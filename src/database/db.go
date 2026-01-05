@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	"github/sarthak-pokharel/sqlite-d1-gochat/src/models"
+
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -24,12 +25,6 @@ func InitDB(dbPath string) error {
 	})
 	if err != nil {
 		return fmt.Errorf("failed to open database: %w", err)
-	}
-
-	// Get underlying SQL DB to configure connection pool
-	sqlDB, err := db.DB()
-	if err != nil {
-		return fmt.Errorf("failed to get underlying DB: %w", err)
 	}
 
 	// Enable foreign keys via raw SQL
