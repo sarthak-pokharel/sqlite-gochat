@@ -3,13 +3,13 @@ package models
 import "time"
 
 type Organization struct {
-	ID        int64     `json:"id" db:"id"`
-	Name      string    `json:"name" db:"name" validate:"required,min=2,max=100"`
-	Slug      string    `json:"slug" db:"slug" validate:"required,lowercase,alphanum"`
-	CreatedAt time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
-	IsActive  bool      `json:"is_active" db:"is_active"`
-	Metadata  *string   `json:"metadata,omitempty" db:"metadata"`
+	ID        int64     `json:"id" gorm:"primaryKey;autoIncrement"`
+	Name      string    `json:"name" gorm:"not null;size:100" validate:"required,min=2,max=100"`
+	Slug      string    `json:"slug" gorm:"uniqueIndex;not null" validate:"required,lowercase,alphanum"`
+	CreatedAt time.Time `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt time.Time `json:"updated_at" gorm:"autoUpdateTime"`
+	IsActive  bool      `json:"is_active" gorm:"default:true"`
+	Metadata  *string   `json:"metadata,omitempty" gorm:"type:text"`
 }
 
 type CreateOrganizationRequest struct {

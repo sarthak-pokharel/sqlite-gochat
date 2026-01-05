@@ -24,19 +24,19 @@ const (
 )
 
 type ChatChannel struct {
-	ID                int64         `json:"id" db:"id"`
-	OrganizationID    int64         `json:"organization_id" db:"organization_id"`
-	Platform          Platform      `json:"platform" db:"platform"`
-	Name              string        `json:"name" db:"name"`
-	AccountIdentifier string        `json:"account_identifier" db:"account_identifier"`
-	Status            ChannelStatus `json:"status" db:"status"`
-	WebhookSecret     *string       `json:"webhook_secret,omitempty" db:"webhook_secret"`
-	AccessToken       *string       `json:"-" db:"access_token"`
-	Config            *string       `json:"config,omitempty" db:"config"`
-	CreatedAt         time.Time     `json:"created_at" db:"created_at"`
-	UpdatedAt         time.Time     `json:"updated_at" db:"updated_at"`
-	LastMessageAt     *time.Time    `json:"last_message_at,omitempty" db:"last_message_at"`
-	IsActive          bool          `json:"is_active" db:"is_active"`
+	ID                int64         `json:"id" gorm:"primaryKey;autoIncrement"`
+	OrganizationID    int64         `json:"organization_id" gorm:"not null;index"`
+	Platform          Platform      `json:"platform" gorm:"not null;index"`
+	Name              string        `json:"name" gorm:"not null;size:100"`
+	AccountIdentifier string        `json:"account_identifier" gorm:"not null"`
+	Status            ChannelStatus `json:"status" gorm:"default:active;index"`
+	WebhookSecret     *string       `json:"webhook_secret,omitempty" gorm:"type:text"`
+	AccessToken       *string       `json:"-" gorm:"type:text"`
+	Config            *string       `json:"config,omitempty" gorm:"type:text"`
+	CreatedAt         time.Time     `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt         time.Time     `json:"updated_at" gorm:"autoUpdateTime"`
+	LastMessageAt     *time.Time    `json:"last_message_at,omitempty"`
+	IsActive          bool          `json:"is_active" gorm:"default:true"`
 }
 
 type CreateChannelRequest struct {

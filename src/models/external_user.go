@@ -2,22 +2,20 @@ package models
 
 import "time"
 
-
 type ExternalUser struct {
-	ID               int64      `json:"id" db:"id"`
-	ChannelID        int64      `json:"channel_id" db:"channel_id"`
-	PlatformUserID   string     `json:"platform_user_id" db:"platform_user_id"`
-	PlatformUsername *string    `json:"platform_username,omitempty" db:"platform_username"`
-	DisplayName      *string    `json:"display_name,omitempty" db:"display_name"`
-	PhoneNumber      *string    `json:"phone_number,omitempty" db:"phone_number"`
-	Email            *string    `json:"email,omitempty" db:"email"`
-	AvatarURL        *string    `json:"avatar_url,omitempty" db:"avatar_url"`
-	Metadata         *string    `json:"metadata,omitempty" db:"metadata"`
-	FirstSeenAt      time.Time  `json:"first_seen_at" db:"first_seen_at"`
-	LastSeenAt       *time.Time `json:"last_seen_at,omitempty" db:"last_seen_at"`
-	IsBlocked        bool       `json:"is_blocked" db:"is_blocked"`
+	ID               int64      `json:"id" gorm:"primaryKey;autoIncrement"`
+	ChannelID        int64      `json:"channel_id" gorm:"not null;index"`
+	PlatformUserID   string     `json:"platform_user_id" gorm:"not null;index"`
+	PlatformUsername *string    `json:"platform_username,omitempty"`
+	DisplayName      *string    `json:"display_name,omitempty"`
+	PhoneNumber      *string    `json:"phone_number,omitempty" gorm:"index"`
+	Email            *string    `json:"email,omitempty"`
+	AvatarURL        *string    `json:"avatar_url,omitempty" gorm:"type:text"`
+	Metadata         *string    `json:"metadata,omitempty" gorm:"type:text"`
+	FirstSeenAt      time.Time  `json:"first_seen_at" gorm:"autoCreateTime"`
+	LastSeenAt       *time.Time `json:"last_seen_at,omitempty"`
+	IsBlocked        bool       `json:"is_blocked" gorm:"default:false"`
 }
-
 
 type CreateExternalUserRequest struct {
 	ChannelID        int64  `validate:"required,gt=0"`
@@ -29,7 +27,6 @@ type CreateExternalUserRequest struct {
 	AvatarURL        *string `validate:"omitempty,url"`
 	Metadata         *string
 }
-
 
 type UpdateExternalUserRequest struct {
 	DisplayName *string `json:"display_name,omitempty"`

@@ -2,7 +2,6 @@ package models
 
 import "time"
 
-
 type MessageSenderType string
 
 const (
@@ -10,7 +9,6 @@ const (
 	SenderInternal MessageSenderType = "internal"
 	SenderSystem   MessageSenderType = "system"
 )
-
 
 type MessageType string
 
@@ -26,14 +24,12 @@ const (
 	MessageTypeSystem   MessageType = "system"
 )
 
-
 type MessageDirection string
 
 const (
 	DirectionInbound  MessageDirection = "inbound"
 	DirectionOutbound MessageDirection = "outbound"
 )
-
 
 type MessageStatus string
 
@@ -45,24 +41,22 @@ const (
 	MessageStatusFailed    MessageStatus = "failed"
 )
 
-
 type Message struct {
-	ID                int64             `json:"id" db:"id"`
-	ConversationID    int64             `json:"conversation_id" db:"conversation_id"`
-	PlatformMessageID *string           `json:"platform_message_id,omitempty" db:"platform_message_id"`
-	SenderType        MessageSenderType `json:"sender_type" db:"sender_type"`
-	SenderID          *int64            `json:"sender_id,omitempty" db:"sender_id"`
-	Content           string            `json:"content" db:"content"`
-	MessageType       MessageType       `json:"message_type" db:"message_type"`
-	MediaURL          *string           `json:"media_url,omitempty" db:"media_url"`
-	Direction         MessageDirection  `json:"direction" db:"direction"`
-	Status            MessageStatus     `json:"status" db:"status"`
-	CreatedAt         time.Time         `json:"created_at" db:"created_at"`
-	DeliveredAt       *time.Time        `json:"delivered_at,omitempty" db:"delivered_at"`
-	ReadAt            *time.Time        `json:"read_at,omitempty" db:"read_at"`
-	Metadata          *string           `json:"metadata,omitempty" db:"metadata"`
+	ID                int64             `json:"id" gorm:"primaryKey;autoIncrement"`
+	ConversationID    int64             `json:"conversation_id" gorm:"not null;index:idx_conv_created"`
+	PlatformMessageID *string           `json:"platform_message_id,omitempty" gorm:"index"`
+	SenderType        MessageSenderType `json:"sender_type" gorm:"not null"`
+	SenderID          *int64            `json:"sender_id,omitempty"`
+	Content           string            `json:"content" gorm:"not null;type:text"`
+	MessageType       MessageType       `json:"message_type" gorm:"default:text"`
+	MediaURL          *string           `json:"media_url,omitempty" gorm:"type:text"`
+	Direction         MessageDirection  `json:"direction" gorm:"not null"`
+	Status            MessageStatus     `json:"status" gorm:"default:received"`
+	CreatedAt         time.Time         `json:"created_at" gorm:"autoCreateTime;index:idx_created,idx_conv_created"`
+	DeliveredAt       *time.Time        `json:"delivered_at,omitempty"`
+	ReadAt            *time.Time        `json:"read_at,omitempty"`
+	Metadata          *string           `json:"metadata,omitempty" gorm:"type:text"`
 }
-
 
 type CreateMessageRequest struct {
 	ConversationID int64       `json:"conversation_id" validate:"required,gt=0"`
@@ -72,7 +66,6 @@ type CreateMessageRequest struct {
 	SenderID       *int64      `json:"sender_id,omitempty"`
 	Metadata       *string     `json:"metadata,omitempty"`
 }
-
 
 type InboundMessageRequest struct {
 	ChannelID         int64       `validate:"required,gt=0"`
@@ -84,10 +77,9 @@ type InboundMessageRequest struct {
 	Metadata          *string
 }
 
-
 type MessageListQuery struct {
 	ConversationID int64  `query:"conversation_id" validate:"required,gt=0"`
 	Limit          int    `query:"limit" validate:"omitempty,min=1,max=100"`
 	Offset         int    `query:"offset" validate:"omitempty,min=0"`
-	Before         *int64 `query:"before"` 
+	Before         *int64 `query:"before"`
 }
