@@ -49,7 +49,7 @@ func main() {
 
 	// Initialize repositories
 	orgRepo := repositories.NewOrganizationRepository(database.DB)
-	channelRepo := repositories.NewChannelRepository(database.DB)
+	_ = repositories.NewChannelRepository(database.DB) // TODO: wire up channel service
 	externalUserRepo := repositories.NewExternalUserRepository(database.DB)
 	conversationRepo := repositories.NewConversationRepository(database.DB)
 	messageRepo := repositories.NewMessageRepository(database.DB)
