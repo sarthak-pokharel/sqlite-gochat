@@ -1,15 +1,17 @@
 package database
 
 import (
-	"database/sql"
 	"fmt"
 	"os"
 	"path/filepath"
 
-	_ "modernc.org/sqlite"
+	"github/sarthak-pokharel/sqlite-d1-gochat/src/models"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
-var DB *sql.DB
+var DB *gorm.DB
 
 func InitDB(dbPath string) error {
 	dir := filepath.Dir(dbPath)
@@ -17,18 +19,21 @@ func InitDB(dbPath string) error {
 		return fmt.Errorf("failed to create database directory: %w", err)
 	}
 
-	db, err := sql.Open("sqlite", dbPath)
+	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Silent),
+	})
 	if err != nil {
 		return fmt.Errorf("failed to open database: %w", err)
 	}
 
-	// Test connection
-	if err := db.Ping(); err != nil {
-		return fmt.Errorf("failed to ping database: %w", err)
+	// Get underlying SQL DB to configure connection pool
+	sqlDB, err := db.DB()
+	if err != nil {
+		return fmt.Errorf("failed to get underlying DB: %w", err)
 	}
 
-	// Enable foreign keys
-	if _, err := db.Exec("PRAGMA foreign_keys = ON"); err != nil {
+	// Enable foreign keys via raw SQL
+	if err := db.Exec("PRAGMA foreign_keys = ON").Error; err != nil {
 		return fmt.Errorf("failed to enable foreign keys: %w", err)
 	}
 
@@ -37,32 +42,36 @@ func InitDB(dbPath string) error {
 	return nil
 }
 
-// RunMigrations executes SQL migration files
-func RunMigrations(migrationsPath string) error {
+// AutoMigrate runs GORM auto-migration for all models
+func AutoMigrate() error {
 	if DB == nil {
 		return fmt.Errorf("database not initialized")
 	}
 
-	// Read migration file
-	migrationFile := filepath.Join(migrationsPath, "001_initial_schema.sql")
-	sqlContent, err := os.ReadFile(migrationFile)
+	err := DB.AutoMigrate(
+		&models.Organization{},
+		&models.ChatChannel{},
+		&models.ExternalUser{},
+		&models.Conversation{},
+		&models.Message{},
+		&models.WebhookEvent{},
+	)
 	if err != nil {
-		return fmt.Errorf("failed to read migration file: %w", err)
+		return fmt.Errorf("failed to run auto-migration: %w", err)
 	}
 
-	// Execute migration
-	if _, err := DB.Exec(string(sqlContent)); err != nil {
-		return fmt.Errorf("failed to execute migration: %w", err)
-	}
-
-	fmt.Println("Migration executed successfully")
+	fmt.Println("Auto-migration completed successfully")
 	return nil
 }
 
 // Close closes the database connection
 func Close() error {
 	if DB != nil {
-		return DB.Close()
+		sqlDB, err := DB.DB()
+		if err != nil {
+			return err
+		}
+		return sqlDB.Close()
 	}
 	return nil
 }
