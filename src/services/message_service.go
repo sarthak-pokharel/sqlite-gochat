@@ -81,7 +81,7 @@ func (s *messageService) ProcessIncomingMessage(req *ProcessIncomingMessageReque
 	message := &models.Message{
 		ConversationID:    conversation.ID,
 		PlatformMessageID: &req.PlatformMessageID,
-		SenderType:        models.SenderTypeExternal,
+		SenderType:        models.SenderExternal,
 		SenderID:          &user.ID,
 		Content:           req.Content,
 		MessageType:       req.MessageType,
@@ -130,7 +130,7 @@ func (s *messageService) SendOutgoingMessage(req *SendOutgoingMessageRequest) (*
 
 	message := &models.Message{
 		ConversationID: req.ConversationID,
-		SenderType:     models.SenderTypeInternal,
+		SenderType:     models.SenderInternal,
 		SenderID:       req.SenderID,
 		Content:        req.Content,
 		MessageType:    req.MessageType,
