@@ -11,15 +11,12 @@ import (
 
 var DB *sql.DB
 
-// InitDB initializes the SQLite database connection
 func InitDB(dbPath string) error {
-	// Create database directory if it doesn't exist
 	dir := filepath.Dir(dbPath)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return fmt.Errorf("failed to create database directory: %w", err)
 	}
 
-	// Open database connection
 	db, err := sql.Open("sqlite", dbPath)
 	if err != nil {
 		return fmt.Errorf("failed to open database: %w", err)
