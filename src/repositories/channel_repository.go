@@ -2,7 +2,6 @@ package repositories
 
 import (
 	"fmt"
-	"time"
 
 	"github/sarthak-pokharel/sqlite-d1-gochat/src/models"
 
@@ -36,7 +35,7 @@ func (r *channelRepository) Create(req *models.CreateChannelRequest) (*models.Ch
 		WebhookSecret:     req.WebhookSecret,
 		AccessToken:       req.AccessToken,
 		Config:            req.Config,
-		IsActive:          1,
+		IsActive:          true,
 	}
 
 	if err := r.db.Create(channel).Error; err != nil {

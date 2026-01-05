@@ -36,7 +36,7 @@ func (r *externalUserRepository) Create(req *models.CreateExternalUserRequest) (
 		Email:            req.Email,
 		AvatarURL:        req.AvatarURL,
 		Metadata:         req.Metadata,
-		IsBlocked:        0,
+		IsBlocked:        false,
 	}
 
 	if err := r.db.Create(user).Error; err != nil {
