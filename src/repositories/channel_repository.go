@@ -1,11 +1,12 @@
 package repositories
 
 import (
-	"database/sql"
 	"fmt"
 	"time"
 
 	"github/sarthak-pokharel/sqlite-d1-gochat/src/models"
+
+	"gorm.io/gorm"
 )
 
 type ChannelRepository interface {
@@ -18,139 +19,91 @@ type ChannelRepository interface {
 }
 
 type channelRepository struct {
-	db *sql.DB
+	db *gorm.DB
 }
 
-func NewChannelRepository(db *sql.DB) ChannelRepository {
+func NewChannelRepository(db *gorm.DB) ChannelRepository {
 	return &channelRepository{db: db}
 }
 
 func (r *channelRepository) Create(req *models.CreateChannelRequest) (*models.ChatChannel, error) {
-	query := `
-		INSERT INTO chat_channels (
-			organization_id, platform, name, account_identifier,
-			status, webhook_secret, access_token, config, created_at, updated_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`
-	now := time.Now()
-	result, err := r.db.Exec(query,
-		req.OrganizationID, req.Platform, req.Name, req.AccountIdentifier,
-		models.ChannelStatusPending, req.WebhookSecret, req.AccessToken,
-		req.Config, now, now,
-	)
-	if err != nil {
+	channel := &models.ChatChannel{
+		OrganizationID:    req.OrganizationID,
+		Platform:          req.Platform,
+		Name:              req.Name,
+		AccountIdentifier: req.AccountIdentifier,
+		Status:            models.ChannelStatusPending,
+		WebhookSecret:     req.WebhookSecret,
+		AccessToken:       req.AccessToken,
+		Config:            req.Config,
+		IsActive:          1,
+	}
+
+	if err := r.db.Create(channel).Error; err != nil {
 		return nil, fmt.Errorf("failed to create channel: %w", err)
 	}
 
-	id, err := result.LastInsertId()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get channel ID: %w", err)
-	}
-
-	return r.GetByID(id)
+	return channel, nil
 }
 
 func (r *channelRepository) GetByID(id int64) (*models.ChatChannel, error) {
-	query := `
-		SELECT id, organization_id, platform, name, account_identifier, status,
-		       webhook_secret, access_token, config, created_at, updated_at,
-		       last_message_at, is_active
-		FROM chat_channels
-		WHERE id = ?
-	`
-	ch := &models.ChatChannel{}
-	err := r.db.QueryRow(query, id).Scan(
-		&ch.ID, &ch.OrganizationID, &ch.Platform, &ch.Name,
-		&ch.AccountIdentifier, &ch.Status, &ch.WebhookSecret,
-		&ch.AccessToken, &ch.Config, &ch.CreatedAt, &ch.UpdatedAt,
-		&ch.LastMessageAt, &ch.IsActive,
-	)
-	if err == sql.ErrNoRows {
-		return nil, fmt.Errorf("channel not found")
-	}
-	if err != nil {
+	var channel models.ChatChannel
+	if err := r.db.First(&channel, id).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, fmt.Errorf("channel not found")
+		}
 		return nil, fmt.Errorf("failed to get channel: %w", err)
 	}
-	return ch, nil
+	return &channel, nil
 }
 
 func (r *channelRepository) ListByOrganization(orgID int64, limit, offset int) ([]*models.ChatChannel, error) {
-	query := `
-		SELECT id, organization_id, platform, name, account_identifier, status,
-		       webhook_secret, config, created_at, updated_at,
-		       last_message_at, is_active
-		FROM chat_channels
-		WHERE organization_id = ? AND is_active = 1
-		ORDER BY created_at DESC
-		LIMIT ? OFFSET ?
-	`
-	rows, err := r.db.Query(query, orgID, limit, offset)
+	var channels []*models.ChatChannel
+	err := r.db.Where("organization_id = ? AND is_active = ?", orgID, 1).
+		Order("created_at DESC").
+		Limit(limit).
+		Offset(offset).
+		Find(&channels).Error
+
 	if err != nil {
 		return nil, fmt.Errorf("failed to list channels: %w", err)
 	}
-	defer rows.Close()
 
-	channels := []*models.ChatChannel{}
-	for rows.Next() {
-		ch := &models.ChatChannel{}
-		err := rows.Scan(
-			&ch.ID, &ch.OrganizationID, &ch.Platform, &ch.Name,
-			&ch.AccountIdentifier, &ch.Status, &ch.WebhookSecret,
-			&ch.Config, &ch.CreatedAt, &ch.UpdatedAt,
-			&ch.LastMessageAt, &ch.IsActive,
-		)
-		if err != nil {
-			return nil, fmt.Errorf("failed to scan channel: %w", err)
-		}
-
+	// Remove access tokens from response
+	for _, ch := range channels {
 		ch.AccessToken = nil
-		channels = append(channels, ch)
 	}
+
 	return channels, nil
 }
 
 func (r *channelRepository) Update(id int64, req *models.UpdateChannelRequest) error {
-	query := "UPDATE chat_channels SET updated_at = ?"
-	args := []interface{}{time.Now()}
+	updates := make(map[string]interface{})
 
 	if req.Name != nil {
-		query += ", name = ?"
-		args = append(args, *req.Name)
+		updates["name"] = *req.Name
 	}
 	if req.Status != nil {
-		query += ", status = ?"
-		args = append(args, *req.Status)
+		updates["status"] = *req.Status
 	}
 	if req.WebhookSecret != nil {
-		query += ", webhook_secret = ?"
-		args = append(args, *req.WebhookSecret)
+		updates["webhook_secret"] = *req.WebhookSecret
 	}
 	if req.AccessToken != nil {
-		query += ", access_token = ?"
-		args = append(args, *req.AccessToken)
+		updates["access_token"] = *req.AccessToken
 	}
 	if req.Config != nil {
-		query += ", config = ?"
-		args = append(args, *req.Config)
+		updates["config"] = *req.Config
 	}
 	if req.IsActive != nil {
-		query += ", is_active = ?"
-		args = append(args, *req.IsActive)
+		updates["is_active"] = *req.IsActive
 	}
 
-	query += " WHERE id = ?"
-	args = append(args, id)
-
-	result, err := r.db.Exec(query, args...)
-	if err != nil {
-		return fmt.Errorf("failed to update channel: %w", err)
+	result := r.db.Model(&models.ChatChannel{}).Where("id = ?", id).Updates(updates)
+	if result.Error != nil {
+		return fmt.Errorf("failed to update channel: %w", result.Error)
 	}
-
-	rows, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("failed to get rows affected: %w", err)
-	}
-	if rows == 0 {
+	if result.RowsAffected == 0 {
 		return fmt.Errorf("channel not found")
 	}
 
@@ -158,37 +111,23 @@ func (r *channelRepository) Update(id int64, req *models.UpdateChannelRequest) e
 }
 
 func (r *channelRepository) UpdateStatus(id int64, status models.ChannelStatus) error {
-	query := "UPDATE chat_channels SET status = ?, updated_at = ? WHERE id = ?"
-	result, err := r.db.Exec(query, status, time.Now(), id)
-	if err != nil {
-		return fmt.Errorf("failed to update channel status: %w", err)
+	result := r.db.Model(&models.ChatChannel{}).Where("id = ?", id).Update("status", status)
+	if result.Error != nil {
+		return fmt.Errorf("failed to update channel status: %w", result.Error)
 	}
-
-	rows, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("failed to get rows affected: %w", err)
-	}
-	if rows == 0 {
+	if result.RowsAffected == 0 {
 		return fmt.Errorf("channel not found")
 	}
-
 	return nil
 }
 
 func (r *channelRepository) Delete(id int64) error {
-	query := "UPDATE chat_channels SET is_active = 0 WHERE id = ?"
-	result, err := r.db.Exec(query, id)
-	if err != nil {
-		return fmt.Errorf("failed to delete channel: %w", err)
+	result := r.db.Model(&models.ChatChannel{}).Where("id = ?", id).Update("is_active", 0)
+	if result.Error != nil {
+		return fmt.Errorf("failed to delete channel: %w", result.Error)
 	}
-
-	rows, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("failed to get rows affected: %w", err)
-	}
-	if rows == 0 {
+	if result.RowsAffected == 0 {
 		return fmt.Errorf("channel not found")
 	}
-
 	return nil
 }
