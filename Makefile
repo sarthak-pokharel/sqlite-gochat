@@ -5,7 +5,7 @@ BINARY=dist/$(APP_NAME)
 
 build:
 	@mkdir -p dist
-	go build -o $(BINARY) src/main.go
+	CGO_ENABLED=0 go build -o $(BINARY) src/main.go
 
 run: build
 	./$(BINARY)
