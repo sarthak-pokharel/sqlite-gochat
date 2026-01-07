@@ -7,7 +7,7 @@ import (
 
 	"github/sarthak-pokharel/sqlite-d1-gochat/src/models"
 
-	"gorm.io/driver/sqlite"
+	"github.com/glebarez/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
