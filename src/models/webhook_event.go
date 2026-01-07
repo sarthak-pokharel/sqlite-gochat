@@ -2,7 +2,6 @@ package models
 
 import "time"
 
-
 type WebhookEvent struct {
 	ID          int64      `json:"id" gorm:"primaryKey;autoIncrement"`
 	ChannelID   int64      `json:"channel_id" gorm:"not null;index"`

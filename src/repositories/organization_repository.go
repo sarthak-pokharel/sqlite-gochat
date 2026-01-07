@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github/sarthak-pokharel/sqlite-d1-gochat/src/models"
+
 	"gorm.io/gorm"
 )
 
@@ -31,11 +32,11 @@ func (r *organizationRepository) Create(req *models.CreateOrganizationRequest) (
 		Metadata: req.Metadata,
 		IsActive: true,
 	}
-	
+
 	if err := r.db.Create(org).Error; err != nil {
 		return nil, fmt.Errorf("failed to create organization: %w", err)
 	}
-	
+
 	return org, nil
 }
 
@@ -75,7 +76,7 @@ func (r *organizationRepository) List(limit, offset int) ([]*models.Organization
 
 func (r *organizationRepository) Update(id int64, req *models.UpdateOrganizationRequest) error {
 	updates := make(map[string]interface{})
-	
+
 	if req.Name != nil {
 		updates["name"] = *req.Name
 	}
@@ -85,7 +86,7 @@ func (r *organizationRepository) Update(id int64, req *models.UpdateOrganization
 	if req.Metadata != nil {
 		updates["metadata"] = *req.Metadata
 	}
-	
+
 	result := r.db.Model(&models.Organization{}).Where("id = ?", id).Updates(updates)
 	if result.Error != nil {
 		return fmt.Errorf("failed to update organization: %w", result.Error)
@@ -93,7 +94,7 @@ func (r *organizationRepository) Update(id int64, req *models.UpdateOrganization
 	if result.RowsAffected == 0 {
 		return fmt.Errorf("organization not found")
 	}
-	
+
 	return nil
 }
 
@@ -105,6 +106,6 @@ func (r *organizationRepository) Delete(id int64) error {
 	if result.RowsAffected == 0 {
 		return fmt.Errorf("organization not found")
 	}
-	
+
 	return nil
 }
