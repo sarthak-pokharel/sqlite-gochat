@@ -50,7 +50,7 @@ func main() {
 
 	// Initialize repositories
 	orgRepo := repositories.NewOrganizationRepository(database.DB)
-	_ = repositories.NewChannelRepository(database.DB) // TODO: wire up channel service
+	channelRepo := repositories.NewChannelRepository(database.DB)
 	externalUserRepo := repositories.NewExternalUserRepository(database.DB)
 	conversationRepo := repositories.NewConversationRepository(database.DB)
 	messageRepo := repositories.NewMessageRepository(database.DB)
@@ -58,12 +58,14 @@ func main() {
 
 	// Initialize services
 	orgService := services.NewOrganizationService(orgRepo, emitter)
+	channelService := services.NewChannelService(channelRepo, emitter)
 	messageService := services.NewMessageService(messageRepo, conversationRepo, externalUserRepo, emitter)
 	conversationService := services.NewConversationService(conversationRepo, emitter)
 	webhookService := services.NewWebhookService(webhookEventRepo, messageService)
 
 	// Initialize handlers
 	orgHandler := handlers.NewOrganizationHandler(orgService)
+	channelHandler := handlers.NewChannelHandler(channelService)
 	messageHandler := handlers.NewMessageHandler(messageService)
 	conversationHandler := handlers.NewConversationHandler(conversationService)
 	webhookHandler := handlers.NewWebhookHandler(webhookService)
@@ -101,6 +103,14 @@ func main() {
 		r.Get("/organizations/slug/{slug}", orgHandler.GetBySlug)
 		r.Patch("/organizations/{id}", orgHandler.Update)
 		r.Delete("/organizations/{id}", orgHandler.Delete)
+
+		// Channel routes
+		r.Post("/channels", channelHandler.Create)
+		r.Get("/channels/{id}", channelHandler.GetByID)
+		r.Get("/organizations/{orgId}/channels", channelHandler.ListByOrganization)
+		r.Patch("/channels/{id}", channelHandler.Update)
+		r.Patch("/channels/{id}/status", channelHandler.UpdateStatus)
+		r.Delete("/channels/{id}", channelHandler.Delete)
 
 		// Conversation routes
 		r.Get("/conversations/{id}", conversationHandler.GetByID)

@@ -10,16 +10,19 @@ import (
 	"github/sarthak-pokharel/sqlite-d1-gochat/src/utils"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/go-playground/validator/v10"
 )
 
 // ConversationHandler handles conversation HTTP requests
 type ConversationHandler struct {
-	service services.ConversationService
+	service   services.ConversationService
+	validator *validator.Validate
 }
 
 func NewConversationHandler(service services.ConversationService) *ConversationHandler {
 	return &ConversationHandler{
-		service: service,
+		service:   service,
+		validator: validator.New(),
 	}
 }
 
