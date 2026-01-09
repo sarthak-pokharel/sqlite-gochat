@@ -1,13 +1,15 @@
 package handlers
 
 import (
+	"encoding/json"
 	"net/http"
 	"strconv"
 
 	"github/sarthak-pokharel/sqlite-d1-gochat/src/models"
 	"github/sarthak-pokharel/sqlite-d1-gochat/src/services"
+	"github/sarthak-pokharel/sqlite-d1-gochat/src/utils"
 
-	"github.com/labstack/echo/v4"
+	"github.com/go-chi/chi/v5"
 )
 
 // ConversationHandler handles conversation HTTP requests
@@ -21,37 +23,40 @@ func NewConversationHandler(service services.ConversationService) *ConversationH
 	}
 }
 
-// GetByID handles GET /api/v1/conversations/:id
-func (h *ConversationHandler) GetByID(c echo.Context) error {
-	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+// GetByID handles GET /api/v1/conversations/{id}
+func (h *ConversationHandler) GetByID(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "invalid conversation ID")
+		utils.ErrorResponse(w, http.StatusBadRequest, "invalid conversation ID")
+		return
 	}
 
 	conversation, err := h.service.GetByID(id)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusNotFound, "conversation not found")
+		utils.ErrorResponse(w, http.StatusNotFound, "conversation not found")
+		return
 	}
 
-	return c.JSON(http.StatusOK, conversation)
+	utils.JSONResponse(w, http.StatusOK, conversation)
 }
 
-// List handles GET /api/v1/channels/:channelId/conversations
-func (h *ConversationHandler) List(c echo.Context) error {
-	channelID, err := strconv.ParseInt(c.Param("channelId"), 10, 64)
+// List handles GET /api/v1/channels/{channelId}/conversations
+func (h *ConversationHandler) List(w http.ResponseWriter, r *http.Request) {
+	channelID, err := strconv.ParseInt(chi.URLParam(r, "channelId"), 10, 64)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "invalid channel ID")
+		utils.ErrorResponse(w, http.StatusBadRequest, "invalid channel ID")
+		return
 	}
 
-	statusStr := c.QueryParam("status")
+	statusStr := r.URL.Query().Get("status")
 	var status *models.ConversationStatus
 	if statusStr != "" {
 		s := models.ConversationStatus(statusStr)
 		status = &s
 	}
 
-	limit, _ := strconv.Atoi(c.QueryParam("limit"))
-	offset, _ := strconv.Atoi(c.QueryParam("offset"))
+	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
 
 	if limit == 0 {
 		limit = 20
@@ -59,88 +64,109 @@ func (h *ConversationHandler) List(c echo.Context) error {
 
 	conversations, err := h.service.ListByChannel(channelID, status, limit, offset)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+		utils.ErrorResponse(w, http.StatusInternalServerError, err.Error())
+		return
 	}
 
-	return c.JSON(http.StatusOK, map[string]interface{}{
+	utils.JSONResponse(w, http.StatusOK, map[string]interface{}{
 		"data":   conversations,
 		"limit":  limit,
 		"offset": offset,
 	})
 }
 
-// Assign handles POST /api/v1/conversations/:id/assign
-func (h *ConversationHandler) Assign(c echo.Context) error {
-	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+// Assign handles POST /api/v1/conversations/{id}/assign
+func (h *ConversationHandler) Assign(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "invalid conversation ID")
+		utils.ErrorResponse(w, http.StatusBadRequest, "invalid conversation ID")
+		return
 	}
 
 	var req struct {
 		AssigneeID string `json:"assignee_id" validate:"required"`
 	}
 
-	if err := c.Bind(&req); err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "invalid request body")
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		utils.ErrorResponse(w, http.StatusBadRequest, "invalid request body")
+		return
 	}
 
 	if req.AssigneeID == "" {
-		return echo.NewHTTPError(http.StatusBadRequest, "assignee_id is required")
+		utils.ErrorResponse(w, http.StatusBadRequest, "assignee_id is required")
+		return
 	}
 
 	if err := h.service.Assign(id, req.AssigneeID); err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+		utils.ErrorResponse(w, http.StatusInternalServerError, err.Error())
+		return
 	}
 
-	return c.JSON(http.StatusOK, map[string]string{
+	utils.JSONResponse(w, http.StatusOK, map[string]string{
 		"message": "conversation assigned successfully",
 	})
 }
 
-// UpdateStatus handles PATCH /api/v1/conversations/:id/status
-func (h *ConversationHandler) UpdateStatus(c echo.Context) error {
-	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+// UpdateStatus handles PATCH /api/v1/conversations/{id}/status
+func (h *ConversationHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "invalid conversation ID")
+		utils.ErrorResponse(w, http.StatusBadRequest, "invalid conversation ID")
+		return
 	}
 
 	var req struct {
 		Status models.ConversationStatus `json:"status" validate:"required"`
 	}
 
-	if err := c.Bind(&req); err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "invalid request body")
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		utils.ErrorResponse(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	if req.Status == "" {
+		utils.ErrorResponse(w, http.StatusBadRequest, "status is required")
+		return
 	}
 
 	if err := h.service.UpdateStatus(id, req.Status); err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+		utils.ErrorResponse(w, http.StatusInternalServerError, err.Error())
+		return
 	}
 
-	return c.JSON(http.StatusOK, map[string]string{
+	utils.JSONResponse(w, http.StatusOK, map[string]string{
 		"message": "conversation status updated successfully",
 	})
 }
 
-// UpdatePriority handles PATCH /api/v1/conversations/:id/priority
-func (h *ConversationHandler) UpdatePriority(c echo.Context) error {
-	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+// UpdatePriority handles PATCH /api/v1/conversations/{id}/priority
+func (h *ConversationHandler) UpdatePriority(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "invalid conversation ID")
+		utils.ErrorResponse(w, http.StatusBadRequest, "invalid conversation ID")
+		return
 	}
 
 	var req struct {
 		Priority models.ConversationPriority `json:"priority" validate:"required"`
 	}
 
-	if err := c.Bind(&req); err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "invalid request body")
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		utils.ErrorResponse(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	if req.Priority == "" {
+		utils.ErrorResponse(w, http.StatusBadRequest, "priority is required")
+		return
 	}
 
 	if err := h.service.UpdatePriority(id, req.Priority); err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+		utils.ErrorResponse(w, http.StatusInternalServerError, err.Error())
+		return
 	}
 
-	return c.JSON(http.StatusOK, map[string]string{
+	utils.JSONResponse(w, http.StatusOK, map[string]string{
 		"message": "conversation priority updated successfully",
 	})
 }
