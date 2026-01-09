@@ -1,33 +1,23 @@
 package middleware
 
 import (
-	"github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
+	"net/http"
+
+	"github.com/go-chi/cors"
 )
 
 // SetupCORS configures CORS middleware
-func SetupCORS(allowedOrigins []string) echo.MiddlewareFunc {
+func SetupCORS(allowedOrigins []string) func(http.Handler) http.Handler {
 	if len(allowedOrigins) == 0 {
 		allowedOrigins = []string{"*"}
 	}
 
-	return middleware.CORSWithConfig(middleware.CORSConfig{
-		AllowOrigins: allowedOrigins,
-		AllowMethods: []string{
-			echo.GET,
-			echo.POST,
-			echo.PUT,
-			echo.PATCH,
-			echo.DELETE,
-			echo.OPTIONS,
-		},
-		AllowHeaders: []string{
-			echo.HeaderOrigin,
-			echo.HeaderContentType,
-			echo.HeaderAccept,
-			echo.HeaderAuthorization,
-			"X-Organization-ID",
-		},
+	return cors.Handler(cors.Options{
+		AllowedOrigins:   allowedOrigins,
+		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"Origin", "Content-Type", "Accept", "Authorization", "X-Organization-ID"},
+		ExposedHeaders:   []string{"Content-Length"},
 		AllowCredentials: true,
+		MaxAge:           300,
 	})
 }
