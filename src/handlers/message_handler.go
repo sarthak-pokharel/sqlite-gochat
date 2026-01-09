@@ -91,10 +91,6 @@ func (h *MessageHandler) GetHistory(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if limit == 0 {
-		limit = 50
-	}
-
 	messages, err := h.service.GetMessageHistory(conversationID, limit, offset, before)
 	if err != nil {
 		utils.ErrorResponse(w, http.StatusInternalServerError, err.Error())

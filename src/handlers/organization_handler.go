@@ -87,10 +87,6 @@ func (h *OrganizationHandler) List(w http.ResponseWriter, r *http.Request) {
 	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
 	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
 
-	if limit == 0 {
-		limit = 20
-	}
-
 	orgs, err := h.service.List(limit, offset)
 	if err != nil {
 		utils.ErrorResponse(w, http.StatusInternalServerError, err.Error())

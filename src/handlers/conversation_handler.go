@@ -61,10 +61,6 @@ func (h *ConversationHandler) List(w http.ResponseWriter, r *http.Request) {
 	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
 	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
 
-	if limit == 0 {
-		limit = 20
-	}
-
 	conversations, err := h.service.ListByChannel(channelID, status, limit, offset)
 	if err != nil {
 		utils.ErrorResponse(w, http.StatusInternalServerError, err.Error())

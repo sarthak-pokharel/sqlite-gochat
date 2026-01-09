@@ -76,10 +76,6 @@ func (h *ChannelHandler) ListByOrganization(w http.ResponseWriter, r *http.Reque
 	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
 	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
 
-	if limit == 0 {
-		limit = 20
-	}
-
 	channels, err := h.service.ListByOrganization(orgID, limit, offset)
 	if err != nil {
 		utils.ErrorResponse(w, http.StatusInternalServerError, err.Error())

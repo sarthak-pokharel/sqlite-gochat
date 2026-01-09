@@ -4,6 +4,7 @@ import (
 	"github/sarthak-pokharel/sqlite-d1-gochat/src/events"
 	"github/sarthak-pokharel/sqlite-d1-gochat/src/models"
 	"github/sarthak-pokharel/sqlite-d1-gochat/src/repositories"
+	"github/sarthak-pokharel/sqlite-d1-gochat/src/utils"
 )
 
 type ConversationService interface {
@@ -31,10 +32,7 @@ func (s *conversationService) GetByID(id int64) (*models.Conversation, error) {
 }
 
 func (s *conversationService) ListByChannel(channelID int64, status *models.ConversationStatus, limit, offset int) ([]*models.Conversation, error) {
-	if limit <= 0 || limit > 100 {
-		limit = 20
-	}
-	return s.repo.List(channelID, status, limit, offset)
+	return s.repo.List(channelID, status, utils.NormalizeLimit(limit), utils.NormalizeOffset(offset))
 }
 
 func (s *conversationService) Assign(conversationID int64, assigneeID string) error {

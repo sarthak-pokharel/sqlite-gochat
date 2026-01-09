@@ -4,6 +4,7 @@ import (
 	"github/sarthak-pokharel/sqlite-d1-gochat/src/events"
 	"github/sarthak-pokharel/sqlite-d1-gochat/src/models"
 	"github/sarthak-pokharel/sqlite-d1-gochat/src/repositories"
+	"github/sarthak-pokharel/sqlite-d1-gochat/src/utils"
 )
 
 // OrganizationService handles organization business logic
@@ -53,10 +54,7 @@ func (s *organizationService) GetBySlug(slug string) (*models.Organization, erro
 }
 
 func (s *organizationService) List(limit, offset int) ([]*models.Organization, error) {
-	if limit <= 0 || limit > 100 {
-		limit = 20
-	}
-	return s.repo.List(limit, offset)
+	return s.repo.List(utils.NormalizeLimit(limit), utils.NormalizeOffset(offset))
 }
 
 func (s *organizationService) Update(id int64, req *models.UpdateOrganizationRequest) error {

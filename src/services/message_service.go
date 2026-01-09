@@ -7,6 +7,7 @@ import (
 	"github/sarthak-pokharel/sqlite-d1-gochat/src/events"
 	"github/sarthak-pokharel/sqlite-d1-gochat/src/models"
 	"github/sarthak-pokharel/sqlite-d1-gochat/src/repositories"
+	"github/sarthak-pokharel/sqlite-d1-gochat/src/utils"
 )
 
 type MessageService interface {
@@ -167,10 +168,7 @@ func (s *messageService) SendOutgoingMessage(req *SendOutgoingMessageRequest) (*
 }
 
 func (s *messageService) GetMessageHistory(conversationID int64, limit, offset int, before *int64) ([]*models.Message, error) {
-	if limit <= 0 || limit > 100 {
-		limit = 50
-	}
-	return s.messageRepo.ListByConversation(conversationID, limit, offset, before)
+	return s.messageRepo.ListByConversation(conversationID, utils.NormalizeLimit(limit), utils.NormalizeOffset(offset), before)
 }
 
 func (s *messageService) MarkDelivered(messageID int64) error {

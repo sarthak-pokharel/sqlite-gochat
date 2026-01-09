@@ -4,6 +4,7 @@ import (
 	"github/sarthak-pokharel/sqlite-d1-gochat/src/events"
 	"github/sarthak-pokharel/sqlite-d1-gochat/src/models"
 	"github/sarthak-pokharel/sqlite-d1-gochat/src/repositories"
+	"github/sarthak-pokharel/sqlite-d1-gochat/src/utils"
 )
 
 type ChannelService interface {
@@ -48,10 +49,7 @@ func (s *channelService) GetByID(id int64) (*models.ChatChannel, error) {
 }
 
 func (s *channelService) ListByOrganization(orgID int64, limit, offset int) ([]*models.ChatChannel, error) {
-	if limit <= 0 || limit > 100 {
-		limit = 20
-	}
-	return s.repo.ListByOrganization(orgID, limit, offset)
+	return s.repo.ListByOrganization(orgID, utils.NormalizeLimit(limit), utils.NormalizeOffset(offset))
 }
 
 func (s *channelService) Update(id int64, req *models.UpdateChannelRequest) error {
