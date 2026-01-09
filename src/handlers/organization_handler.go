@@ -1,14 +1,16 @@
 package handlers
 
 import (
+	"encoding/json"
 	"net/http"
 	"strconv"
 
 	"github/sarthak-pokharel/sqlite-d1-gochat/src/models"
 	"github/sarthak-pokharel/sqlite-d1-gochat/src/services"
+	"github/sarthak-pokharel/sqlite-d1-gochat/src/utils"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/go-playground/validator/v10"
-	"github.com/labstack/echo/v4"
 )
 
 // OrganizationHandler handles organization HTTP requests
@@ -25,58 +27,65 @@ func NewOrganizationHandler(service services.OrganizationService) *OrganizationH
 }
 
 // Create handles POST /api/v1/organizations
-func (h *OrganizationHandler) Create(c echo.Context) error {
+func (h *OrganizationHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var req models.CreateOrganizationRequest
-	if err := c.Bind(&req); err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "invalid request body")
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		utils.ErrorResponse(w, http.StatusBadRequest, "invalid request body")
+		return
 	}
 
 	if err := h.validator.Struct(req); err != nil {
-		return echo.NewHTTPError(http.StatusUnprocessableEntity, err.Error())
+		utils.ErrorResponse(w, http.StatusUnprocessableEntity, err.Error())
+		return
 	}
 
 	org, err := h.service.Create(&req)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+		utils.ErrorResponse(w, http.StatusInternalServerError, err.Error())
+		return
 	}
 
-	return c.JSON(http.StatusCreated, org)
+	utils.JSONResponse(w, http.StatusCreated, org)
 }
 
-// GetByID handles GET /api/v1/organizations/:id
-func (h *OrganizationHandler) GetByID(c echo.Context) error {
-	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+// GetByID handles GET /api/v1/organizations/{id}
+func (h *OrganizationHandler) GetByID(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "invalid organization ID")
+		utils.ErrorResponse(w, http.StatusBadRequest, "invalid organization ID")
+		return
 	}
 
 	org, err := h.service.GetByID(id)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusNotFound, "organization not found")
+		utils.ErrorResponse(w, http.StatusNotFound, "organization not found")
+		return
 	}
 
-	return c.JSON(http.StatusOK, org)
+	utils.JSONResponse(w, http.StatusOK, org)
 }
 
-// GetBySlug handles GET /api/v1/organizations/slug/:slug
-func (h *OrganizationHandler) GetBySlug(c echo.Context) error {
-	slug := c.Param("slug")
+// GetBySlug handles GET /api/v1/organizations/slug/{slug}
+func (h *OrganizationHandler) GetBySlug(w http.ResponseWriter, r *http.Request) {
+	slug := chi.URLParam(r, "slug")
 	if slug == "" {
-		return echo.NewHTTPError(http.StatusBadRequest, "slug is required")
+		utils.ErrorResponse(w, http.StatusBadRequest, "slug is required")
+		return
 	}
 
 	org, err := h.service.GetBySlug(slug)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusNotFound, "organization not found")
+		utils.ErrorResponse(w, http.StatusNotFound, "organization not found")
+		return
 	}
 
-	return c.JSON(http.StatusOK, org)
+	utils.JSONResponse(w, http.StatusOK, org)
 }
 
 // List handles GET /api/v1/organizations
-func (h *OrganizationHandler) List(c echo.Context) error {
-	limit, _ := strconv.Atoi(c.QueryParam("limit"))
-	offset, _ := strconv.Atoi(c.QueryParam("offset"))
+func (h *OrganizationHandler) List(w http.ResponseWriter, r *http.Request) {
+	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
 
 	if limit == 0 {
 		limit = 20
@@ -84,51 +93,58 @@ func (h *OrganizationHandler) List(c echo.Context) error {
 
 	orgs, err := h.service.List(limit, offset)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+		utils.ErrorResponse(w, http.StatusInternalServerError, err.Error())
+		return
 	}
 
-	return c.JSON(http.StatusOK, map[string]interface{}{
+	utils.JSONResponse(w, http.StatusOK, map[string]interface{}{
 		"data":   orgs,
 		"limit":  limit,
 		"offset": offset,
 	})
 }
 
-// Update handles PATCH /api/v1/organizations/:id
-func (h *OrganizationHandler) Update(c echo.Context) error {
-	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+// Update handles PATCH /api/v1/organizations/{id}
+func (h *OrganizationHandler) Update(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "invalid organization ID")
+		utils.ErrorResponse(w, http.StatusBadRequest, "invalid organization ID")
+		return
 	}
 
 	var req models.UpdateOrganizationRequest
-	if err := c.Bind(&req); err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "invalid request body")
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		utils.ErrorResponse(w, http.StatusBadRequest, "invalid request body")
+		return
 	}
 
 	if err := h.validator.Struct(req); err != nil {
-		return echo.NewHTTPError(http.StatusUnprocessableEntity, err.Error())
+		utils.ErrorResponse(w, http.StatusUnprocessableEntity, err.Error())
+		return
 	}
 
 	if err := h.service.Update(id, &req); err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+		utils.ErrorResponse(w, http.StatusInternalServerError, err.Error())
+		return
 	}
 
-	return c.JSON(http.StatusOK, map[string]string{
+	utils.JSONResponse(w, http.StatusOK, map[string]string{
 		"message": "organization updated successfully",
 	})
 }
 
-// Delete handles DELETE /api/v1/organizations/:id
-func (h *OrganizationHandler) Delete(c echo.Context) error {
-	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+// Delete handles DELETE /api/v1/organizations/{id}
+func (h *OrganizationHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "invalid organization ID")
+		utils.ErrorResponse(w, http.StatusBadRequest, "invalid organization ID")
+		return
 	}
 
 	if err := h.service.Delete(id); err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+		utils.ErrorResponse(w, http.StatusInternalServerError, err.Error())
+		return
 	}
 
-	return c.NoContent(http.StatusNoContent)
+	w.WriteHeader(http.StatusNoContent)
 }

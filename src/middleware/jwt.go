@@ -1,18 +1,17 @@
 package middleware
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strings"
 
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/labstack/echo/v4"
 )
 
 // JWTConfig holds JWT middleware configuration
 type JWTConfig struct {
-	Secret     string
-	SkipRoutes []string
+	Secret string
 }
 
 // CustomClaims represents JWT claims structure
@@ -23,34 +22,38 @@ type CustomClaims struct {
 	jwt.RegisteredClaims
 }
 
-// SetupJWT configures JWT authentication middleware
-func SetupJWT(config JWTConfig) echo.MiddlewareFunc {
-	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
-			// Check if route should skip JWT validation
-			path := c.Path()
-			for _, skipRoute := range config.SkipRoutes {
-				if strings.HasPrefix(path, skipRoute) {
-					return next(c)
-				}
-			}
+// Context keys for storing user info
+type contextKey string
 
+const (
+	UserIDKey         = contextKey("user_id")
+	OrganizationIDKey = contextKey("organization_id")
+	RoleKey           = contextKey("role")
+)
+
+// SetupJWT configures JWT authentication middleware
+func SetupJWT(config JWTConfig) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// Extract token from Authorization header
-			authHeader := c.Request().Header.Get("Authorization")
+			authHeader := r.Header.Get("Authorization")
 			if authHeader == "" {
-				return echo.NewHTTPError(http.StatusUnauthorized, "missing authorization header")
+				http.Error(w, `{"error":"missing authorization header"}`, http.StatusUnauthorized)
+				return
 			}
 
 			// Expected format: "Bearer <token>"
 			parts := strings.Split(authHeader, " ")
 			if len(parts) != 2 || parts[0] != "Bearer" {
-				return echo.NewHTTPError(http.StatusUnauthorized, "invalid authorization format")
+				http.Error(w, `{"error":"invalid authorization format"}`, http.StatusUnauthorized)
+				return
 			}
 
 			tokenString := parts[1]
 
 			// Parse and validate token
 			token, err := jwt.ParseWithClaims(tokenString, &CustomClaims{}, func(token *jwt.Token) (interface{}, error) {
+				// Verify signing method
 				if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 					return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 				}
@@ -58,43 +61,53 @@ func SetupJWT(config JWTConfig) echo.MiddlewareFunc {
 			})
 
 			if err != nil {
-				return echo.NewHTTPError(http.StatusUnauthorized, "invalid token")
+				http.Error(w, `{"error":"invalid token"}`, http.StatusUnauthorized)
+				return
 			}
 
 			if !token.Valid {
-				return echo.NewHTTPError(http.StatusUnauthorized, "token is not valid")
+				http.Error(w, `{"error":"token is not valid"}`, http.StatusUnauthorized)
+				return
 			}
 
 			// Extract claims
 			claims, ok := token.Claims.(*CustomClaims)
 			if !ok {
-				return echo.NewHTTPError(http.StatusUnauthorized, "invalid token claims")
+				http.Error(w, `{"error":"invalid token claims"}`, http.StatusUnauthorized)
+				return
 			}
 
-			// Set claims in context for handlers to use
-			c.Set("user_id", claims.UserID)
-			c.Set("organization_id", claims.OrganizationID)
-			c.Set("role", claims.Role)
+			// Store claims in context
+			ctx := context.WithValue(r.Context(), UserIDKey, claims.UserID)
+			ctx = context.WithValue(ctx, OrganizationIDKey, claims.OrganizationID)
+			ctx = context.WithValue(ctx, RoleKey, claims.Role)
 
-			return next(c)
-		}
+			// Call next handler with updated context
+			next.ServeHTTP(w, r.WithContext(ctx))
+		})
 	}
 }
 
 // GetUserID retrieves user ID from context
-func GetUserID(c echo.Context) string {
-	userID, _ := c.Get("user_id").(string)
-	return userID
+func GetUserID(r *http.Request) string {
+	if v := r.Context().Value(UserIDKey); v != nil {
+		return v.(string)
+	}
+	return ""
 }
 
 // GetOrganizationID retrieves organization ID from context
-func GetOrganizationID(c echo.Context) string {
-	orgID, _ := c.Get("organization_id").(string)
-	return orgID
+func GetOrganizationID(r *http.Request) string {
+	if v := r.Context().Value(OrganizationIDKey); v != nil {
+		return v.(string)
+	}
+	return ""
 }
 
-// GetRole retrieves user role from context
-func GetRole(c echo.Context) string {
-	role, _ := c.Get("role").(string)
-	return role
+// GetRole retrieves role from context
+func GetRole(r *http.Request) string {
+	if v := r.Context().Value(RoleKey); v != nil {
+		return v.(string)
+	}
+	return ""
 }

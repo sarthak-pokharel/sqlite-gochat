@@ -1,14 +1,16 @@
 package handlers
 
 import (
+	"encoding/json"
 	"net/http"
 	"strconv"
 
 	"github/sarthak-pokharel/sqlite-d1-gochat/src/models"
 	"github/sarthak-pokharel/sqlite-d1-gochat/src/services"
+	"github/sarthak-pokharel/sqlite-d1-gochat/src/utils"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/go-playground/validator/v10"
-	"github.com/labstack/echo/v4"
 )
 
 // MessageHandler handles message HTTP requests
@@ -24,11 +26,12 @@ func NewMessageHandler(service services.MessageService) *MessageHandler {
 	}
 }
 
-// SendMessage handles POST /api/v1/conversations/:id/messages
-func (h *MessageHandler) SendMessage(c echo.Context) error {
-	conversationID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+// SendMessage handles POST /api/v1/conversations/{id}/messages
+func (h *MessageHandler) SendMessage(w http.ResponseWriter, r *http.Request) {
+	conversationID, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "invalid conversation ID")
+		utils.ErrorResponse(w, http.StatusBadRequest, "invalid conversation ID")
+		return
 	}
 
 	var req struct {
@@ -38,12 +41,14 @@ func (h *MessageHandler) SendMessage(c echo.Context) error {
 		Metadata    *string            `json:"metadata,omitempty"`
 	}
 
-	if err := c.Bind(&req); err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "invalid request body")
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		utils.ErrorResponse(w, http.StatusBadRequest, "invalid request body")
+		return
 	}
 
 	if err := h.validator.Struct(req); err != nil {
-		return echo.NewHTTPError(http.StatusUnprocessableEntity, err.Error())
+		utils.ErrorResponse(w, http.StatusUnprocessableEntity, err.Error())
+		return
 	}
 
 	if req.MessageType == "" {
@@ -59,28 +64,30 @@ func (h *MessageHandler) SendMessage(c echo.Context) error {
 	})
 
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+		utils.ErrorResponse(w, http.StatusInternalServerError, err.Error())
+		return
 	}
 
-	return c.JSON(http.StatusCreated, message)
+	utils.JSONResponse(w, http.StatusCreated, message)
 }
 
-// GetHistory handles GET /api/v1/conversations/:id/messages
-func (h *MessageHandler) GetHistory(c echo.Context) error {
-	conversationID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+// GetHistory handles GET /api/v1/conversations/{id}/messages
+func (h *MessageHandler) GetHistory(w http.ResponseWriter, r *http.Request) {
+	conversationID, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "invalid conversation ID")
+		utils.ErrorResponse(w, http.StatusBadRequest, "invalid conversation ID")
+		return
 	}
 
-	limit, _ := strconv.Atoi(c.QueryParam("limit"))
-	offset, _ := strconv.Atoi(c.QueryParam("offset"))
-	beforeStr := c.QueryParam("before")
+	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
+	beforeStr := r.URL.Query().Get("before")
 
 	var before *int64
 	if beforeStr != "" {
-		beforeVal, err := strconv.ParseInt(beforeStr, 10, 64)
+		b, err := strconv.ParseInt(beforeStr, 10, 64)
 		if err == nil {
-			before = &beforeVal
+			before = &b
 		}
 	}
 
@@ -90,44 +97,49 @@ func (h *MessageHandler) GetHistory(c echo.Context) error {
 
 	messages, err := h.service.GetMessageHistory(conversationID, limit, offset, before)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+		utils.ErrorResponse(w, http.StatusInternalServerError, err.Error())
+		return
 	}
 
-	return c.JSON(http.StatusOK, map[string]interface{}{
+	utils.JSONResponse(w, http.StatusOK, map[string]interface{}{
 		"data":   messages,
 		"limit":  limit,
 		"offset": offset,
 	})
 }
 
-// MarkDelivered handles POST /api/v1/messages/:id/delivered
-func (h *MessageHandler) MarkDelivered(c echo.Context) error {
-	messageID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+// MarkDelivered handles POST /api/v1/messages/{id}/delivered
+func (h *MessageHandler) MarkDelivered(w http.ResponseWriter, r *http.Request) {
+	messageID, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "invalid message ID")
+		utils.ErrorResponse(w, http.StatusBadRequest, "invalid message ID")
+		return
 	}
 
 	if err := h.service.MarkDelivered(messageID); err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+		utils.ErrorResponse(w, http.StatusInternalServerError, err.Error())
+		return
 	}
 
-	return c.JSON(http.StatusOK, map[string]string{
-		"message": "message marked as delivered",
+	utils.JSONResponse(w, http.StatusOK, map[string]string{
+		"message": "marked as delivered",
 	})
 }
 
-// MarkRead handles POST /api/v1/messages/:id/read
-func (h *MessageHandler) MarkRead(c echo.Context) error {
-	messageID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+// MarkRead handles POST /api/v1/messages/{id}/read
+func (h *MessageHandler) MarkRead(w http.ResponseWriter, r *http.Request) {
+	messageID, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "invalid message ID")
+		utils.ErrorResponse(w, http.StatusBadRequest, "invalid message ID")
+		return
 	}
 
 	if err := h.service.MarkRead(messageID); err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+		utils.ErrorResponse(w, http.StatusInternalServerError, err.Error())
+		return
 	}
 
-	return c.JSON(http.StatusOK, map[string]string{
-		"message": "message marked as read",
+	utils.JSONResponse(w, http.StatusOK, map[string]string{
+		"message": "marked as read",
 	})
 }

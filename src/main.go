@@ -3,12 +3,13 @@ package main
 import (
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 
-	"github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 
 	"github/sarthak-pokharel/sqlite-d1-gochat/src/config"
 	"github/sarthak-pokharel/sqlite-d1-gochat/src/database"
@@ -67,60 +68,63 @@ func main() {
 	conversationHandler := handlers.NewConversationHandler(conversationService)
 	webhookHandler := handlers.NewWebhookHandler(webhookService)
 
-	// Setup Echo server
-	e := echo.New()
-	e.HideBanner = true
-	e.HTTPErrorHandler = custommiddleware.CustomErrorHandler
+	// Setup Chi router
+	r := chi.NewRouter()
 
 	// Global middleware
-	e.Use(middleware.Logger())
-	e.Use(middleware.Recover())
-	e.Use(custommiddleware.SetupCORS([]string{"http://localhost:3000", "http://localhost:5173"}))
+	r.Use(middleware.Logger)
+	r.Use(middleware.Recoverer)
+	r.Use(custommiddleware.SetupCORS([]string{"http://localhost:3000", "http://localhost:5173"}))
 
 	// Public routes (no JWT required)
-	e.GET("/health", func(c echo.Context) error {
-		return c.JSON(200, map[string]string{"status": "ok"})
+	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"status":"ok"}`))
 	})
 
 	// Webhook routes (platform-specific authentication would be added per platform)
-	webhooks := e.Group("/api/v1/webhooks")
-	webhooks.POST("/:channelId/:platform", webhookHandler.HandleWebhook)
+	r.Route("/api/v1/webhooks", func(r chi.Router) {
+		r.Post("/{channelId}/{platform}", webhookHandler.HandleWebhook)
+	})
 
 	// API routes with JWT authentication
-	api := e.Group("/api/v1")
-	api.Use(custommiddleware.SetupJWT(custommiddleware.JWTConfig{
-		Secret: cfg.JWT.Secret,
-		SkipRoutes: []string{
-			"/api/v1/webhooks",
-		},
-	}))
+	r.Route("/api/v1", func(r chi.Router) {
+		r.Use(custommiddleware.SetupJWT(custommiddleware.JWTConfig{
+			Secret: cfg.JWT.Secret,
+		}))
 
-	// Organization routes
-	api.POST("/organizations", orgHandler.Create)
-	api.GET("/organizations", orgHandler.List)
-	api.GET("/organizations/:id", orgHandler.GetByID)
-	api.GET("/organizations/slug/:slug", orgHandler.GetBySlug)
-	api.PATCH("/organizations/:id", orgHandler.Update)
-	api.DELETE("/organizations/:id", orgHandler.Delete)
+		// Organization routes
+		r.Post("/organizations", orgHandler.Create)
+		r.Get("/organizations", orgHandler.List)
+		r.Get("/organizations/{id}", orgHandler.GetByID)
+		r.Get("/organizations/slug/{slug}", orgHandler.GetBySlug)
+		r.Patch("/organizations/{id}", orgHandler.Update)
+		r.Delete("/organizations/{id}", orgHandler.Delete)
 
-	// Conversation routes
-	api.GET("/conversations/:id", conversationHandler.GetByID)
-	api.GET("/channels/:channelId/conversations", conversationHandler.List)
-	api.POST("/conversations/:id/assign", conversationHandler.Assign)
-	api.PATCH("/conversations/:id/status", conversationHandler.UpdateStatus)
-	api.PATCH("/conversations/:id/priority", conversationHandler.UpdatePriority)
+		// Conversation routes
+		r.Get("/conversations/{id}", conversationHandler.GetByID)
+		r.Get("/channels/{channelId}/conversations", conversationHandler.List)
+		r.Post("/conversations/{id}/assign", conversationHandler.Assign)
+		r.Patch("/conversations/{id}/status", conversationHandler.UpdateStatus)
+		r.Patch("/conversations/{id}/priority", conversationHandler.UpdatePriority)
 
-	// Message routes
-	api.POST("/conversations/:id/messages", messageHandler.SendMessage)
-	api.GET("/conversations/:id/messages", messageHandler.GetHistory)
-	api.POST("/messages/:id/delivered", messageHandler.MarkDelivered)
-	api.POST("/messages/:id/read", messageHandler.MarkRead)
+		// Message routes
+		r.Post("/conversations/{id}/messages", messageHandler.SendMessage)
+		r.Get("/conversations/{id}/messages", messageHandler.GetHistory)
+		r.Post("/messages/{id}/delivered", messageHandler.MarkDelivered)
+		r.Post("/messages/{id}/read", messageHandler.MarkRead)
+	})
 
 	// Start server
+	server := &http.Server{
+		Addr:    fmt.Sprintf(":%s", cfg.Server.Port),
+		Handler: r,
+	}
+
 	go func() {
-		addr := fmt.Sprintf(":%s", cfg.Server.Port)
-		log.Printf("Starting server on %s (env: %s)", addr, cfg.Server.Env)
-		if err := e.Start(addr); err != nil {
+		log.Printf("Starting server on %s (env: %s)", server.Addr, cfg.Server.Env)
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Printf("Server error: %v", err)
 		}
 	}()

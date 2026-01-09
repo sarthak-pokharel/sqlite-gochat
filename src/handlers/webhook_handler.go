@@ -1,12 +1,14 @@
 package handlers
 
 import (
+	"encoding/json"
 	"net/http"
 	"strconv"
 
 	"github/sarthak-pokharel/sqlite-d1-gochat/src/services"
+	"github/sarthak-pokharel/sqlite-d1-gochat/src/utils"
 
-	"github.com/labstack/echo/v4"
+	"github.com/go-chi/chi/v5"
 )
 
 // WebhookHandler handles incoming webhooks from external platforms
@@ -20,22 +22,25 @@ func NewWebhookHandler(service services.WebhookService) *WebhookHandler {
 	}
 }
 
-// HandleWebhook handles POST /api/v1/webhooks/:channelId/:platform
-func (h *WebhookHandler) HandleWebhook(c echo.Context) error {
-	channelID, err := strconv.ParseInt(c.Param("channelId"), 10, 64)
+// HandleWebhook handles POST /api/v1/webhooks/{channelId}/{platform}
+func (h *WebhookHandler) HandleWebhook(w http.ResponseWriter, r *http.Request) {
+	channelID, err := strconv.ParseInt(chi.URLParam(r, "channelId"), 10, 64)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "invalid channel ID")
+		utils.ErrorResponse(w, http.StatusBadRequest, "invalid channel ID")
+		return
 	}
 
-	platform := c.Param("platform")
+	platform := chi.URLParam(r, "platform")
 	if platform == "" {
-		return echo.NewHTTPError(http.StatusBadRequest, "platform is required")
+		utils.ErrorResponse(w, http.StatusBadRequest, "platform is required")
+		return
 	}
 
 	// Parse generic webhook payload
 	var payload map[string]interface{}
-	if err := c.Bind(&payload); err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "invalid payload")
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		utils.ErrorResponse(w, http.StatusBadRequest, "invalid payload")
+		return
 	}
 
 	// Determine event type (platform-specific logic would go here)
@@ -46,10 +51,11 @@ func (h *WebhookHandler) HandleWebhook(c echo.Context) error {
 
 	// Process webhook
 	if err := h.service.ProcessWebhook(channelID, eventType, payload); err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+		utils.ErrorResponse(w, http.StatusInternalServerError, err.Error())
+		return
 	}
 
-	return c.JSON(http.StatusOK, map[string]string{
+	utils.JSONResponse(w, http.StatusOK, map[string]string{
 		"status": "processed",
 	})
 }
