@@ -28,13 +28,14 @@ func main() {
 	}
 
 	// Initialize database
-	if err := database.InitDB(cfg.Database.Path); err != nil {
+	db, err := database.InitDB(cfg.Database.Path)
+	if err != nil {
 		log.Fatalf("Failed to initialize database: %v", err)
 	}
-	defer database.Close()
+	defer database.Close(db)
 
 	// Run GORM auto-migrations
-	if err := database.AutoMigrate(); err != nil {
+	if err := database.AutoMigrate(db); err != nil {
 		log.Fatalf("Failed to run migrations: %v", err)
 	}
 
@@ -49,12 +50,12 @@ func main() {
 	defer emitter.Close()
 
 	// Initialize repositories
-	orgRepo := repositories.NewOrganizationRepository(database.DB)
-	channelRepo := repositories.NewChannelRepository(database.DB)
-	externalUserRepo := repositories.NewExternalUserRepository(database.DB)
-	conversationRepo := repositories.NewConversationRepository(database.DB)
-	messageRepo := repositories.NewMessageRepository(database.DB)
-	webhookEventRepo := repositories.NewWebhookEventRepository(database.DB)
+	orgRepo := repositories.NewOrganizationRepository(db)
+	channelRepo := repositories.NewChannelRepository(db)
+	externalUserRepo := repositories.NewExternalUserRepository(db)
+	conversationRepo := repositories.NewConversationRepository(db)
+	messageRepo := repositories.NewMessageRepository(db)
+	webhookEventRepo := repositories.NewWebhookEventRepository(db)
 
 	// Initialize services
 	orgService := services.NewOrganizationService(orgRepo, emitter)

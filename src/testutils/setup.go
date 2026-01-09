@@ -14,20 +14,21 @@ func SetupTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 
 	// Use in-memory SQLite for tests
-	if err := database.InitDB(":memory:"); err != nil {
+	db, err := database.InitDB(":memory:")
+	if err != nil {
 		t.Fatalf("Failed to initialize test database: %v", err)
 	}
 
-	if err := database.AutoMigrate(); err != nil {
+	if err := database.AutoMigrate(db); err != nil {
 		t.Fatalf("Failed to run migrations: %v", err)
 	}
 
-	return database.DB
+	return db
 }
 
-func TeardownTestDB(t *testing.T) {
+func TeardownTestDB(t *testing.T, db *gorm.DB) {
 	t.Helper()
-	database.Close()
+	database.Close(db)
 }
 
 func SetupTestDBFile(t *testing.T) (*gorm.DB, func()) {
@@ -39,23 +40,24 @@ func SetupTestDBFile(t *testing.T) (*gorm.DB, func()) {
 	}
 	tmpFile.Close()
 
-	if err := database.InitDB(tmpFile.Name()); err != nil {
+	db, err := database.InitDB(tmpFile.Name())
+	if err != nil {
 		os.Remove(tmpFile.Name())
 		t.Fatalf("Failed to initialize test database: %v", err)
 	}
 
-	if err := database.AutoMigrate(); err != nil {
-		database.Close()
+	if err := database.AutoMigrate(db); err != nil {
+		database.Close(db)
 		os.Remove(tmpFile.Name())
 		t.Fatalf("Failed to run migrations: %v", err)
 	}
 
 	cleanup := func() {
-		database.Close()
+		database.Close(db)
 		os.Remove(tmpFile.Name())
 	}
 
-	return database.DB, cleanup
+	return db, cleanup
 }
 
 func CreateTestOrganization(t *testing.T, db *gorm.DB, name, slug string) *models.Organization {
