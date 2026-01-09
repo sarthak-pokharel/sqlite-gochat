@@ -35,7 +35,7 @@ func (s *organizationService) Create(req *models.CreateOrganizationRequest) (*mo
 	}
 
 	// Emit event (non-blocking, fire and forget)
-	go s.emitter.Emit("organization.created", map[string]interface{}{
+	go s.emitter.Emit(events.EventOrganizationCreated, map[string]interface{}{
 		"organization_id": org.ID,
 		"slug":            org.Slug,
 		"name":            org.Name,
@@ -64,7 +64,7 @@ func (s *organizationService) Update(id int64, req *models.UpdateOrganizationReq
 		return err
 	}
 
-	go s.emitter.Emit("organization.updated", map[string]interface{}{
+	go s.emitter.Emit(events.EventOrganizationUpdated, map[string]interface{}{
 		"organization_id": id,
 	})
 
@@ -76,7 +76,7 @@ func (s *organizationService) Delete(id int64) error {
 		return err
 	}
 
-	go s.emitter.Emit("organization.deleted", map[string]interface{}{
+	go s.emitter.Emit(events.EventOrganizationDeleted, map[string]interface{}{
 		"organization_id": id,
 	})
 

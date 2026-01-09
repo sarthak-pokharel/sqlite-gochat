@@ -21,6 +21,16 @@ const (
 	EventConversationUpdated = "chat.conversation.updated"
 	EventUserOnline          = "chat.user.online"
 	EventUserOffline         = "chat.user.offline"
+
+	// Organization events
+	EventOrganizationCreated = "organization.created"
+	EventOrganizationUpdated = "organization.updated"
+	EventOrganizationDeleted = "organization.deleted"
+
+	// Channel events
+	EventChannelCreated = "channel.created"
+	EventChannelUpdated = "channel.updated"
+	EventChannelDeleted = "channel.deleted"
 )
 
 // Event represents a generic event structure
