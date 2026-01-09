@@ -127,6 +127,9 @@ func (s *messageService) SendOutgoingMessage(req *SendOutgoingMessageRequest) (*
 	if err != nil {
 		return nil, fmt.Errorf("conversation not found: %w", err)
 	}
+	if conversation == nil {
+		return nil, fmt.Errorf("conversation not found")
+	}
 
 	message := &models.Message{
 		ConversationID: req.ConversationID,
